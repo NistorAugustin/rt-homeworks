@@ -1,0 +1,35 @@
+---
+title: Secvența 1 – telemetrie care depășește pragul și produce o alarmă
+---
+sequenceDiagram
+    autonumber
+    participant PER as :PeriodicTelemetryTask
+    participant SEN as :TemperatureSensor
+    participant Q as alarmEvents :BlockingQueue
+    participant SPO as :SporadicAlarmTask
+    participant B as :Broker MQTT
+    participant MPT as :MessageProcessor (telemetry)
+    participant MPA as :MessageProcessor (alarm)
+    participant CSV as :CsvStorage
+    participant DB as :Dashboard
+
+    Note over PER: eliberare r_k = r_0 + k·T
+    PER->>SEN: read()
+    SEN-->>PER: 29.41
+    PER-)B: publish(.../device-1/telemetry, "device-1#59;ts#59;29.41")
+    B-)MPT: "device-1#59;ts#59;29.41"
+    MPT->>CSV: append("telemetry", mesaj)
+    MPT->>DB: updateTelemetry("device-1", 29.41)
+    Note over PER: 29.41 > prag 28.00
+    PER-)Q: offer(AlarmEvent(ts, 29.41, 28.00))
+    PER->>PER: sleepUntil(r_k + T)
+    Q-->>SPO: take() → eveniment
+    alt au trecut ≥ 5000 ms de la ultima alarmă
+        SPO-)B: publish(.../device-1/alarm, "device-1#59;ts#59;29.41#59;28.00")
+        B-)MPA: "device-1#59;ts#59;29.41#59;28.00"
+        MPA->>CSV: append("alarm", mesaj)
+        MPA->>DB: updateAlarm("device-1", 29.41)
+        Note right of MPA: afișare imediată:<br/>*** ALARMĂ device-1 ***
+    else < 5000 ms (interval minim între sosiri încălcat)
+        SPO->>SPO: eveniment RESPINS (nu se publică)
+    end

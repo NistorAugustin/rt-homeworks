@@ -1,0 +1,57 @@
+---
+title: Diagramă de componente – sistem IoT (Tema 01)
+---
+flowchart LR
+    classDef comp fill:#dbe9f7,stroke:#1f5fa8,stroke-width:1.5px,color:#000
+    classDef inner fill:#ffffff,stroke:#1f5fa8,color:#000
+    classDef broker fill:#fde8c8,stroke:#c77700,stroke-width:1.5px,color:#000
+    classDef iface fill:#ffffff,stroke:#333,color:#000
+    classDef store fill:#e3f1dc,stroke:#3c7a2a,color:#000
+
+    subgraph DEV["«component» device-simulator (1..n instanțe: device-1, device-2, …)"]
+        direction TB
+        SENS["«component»<br/>TemperatureSensor"]:::inner
+        PER["«component»<br/>PeriodicTelemetryTask<br/>T = periodMs (implicit 2000 ms)"]:::inner
+        SPO["«component»<br/>SporadicAlarmTask<br/>interval minim 5000 ms"]:::inner
+        APE["«component»<br/>AperiodicCommandTask"]:::inner
+        MQD["«component»<br/>MqttConnection"]:::inner
+        PER -- "read()" --> SENS
+        PER -- "BlockingQueue&lt;AlarmEvent&gt;" --> SPO
+        APE -- "setPeriodMs() / setThreshold()" --> PER
+        APE -- "reset()" --> SENS
+        PER --> MQD
+        SPO --> MQD
+        APE --> MQD
+    end
+
+    subgraph BRK["«component» Broker MQTT"]
+        direction TB
+        ADDR["tcp://control.aut.utcluj.ro:11188<br/>topic-uri: ssatr/gustinistor/devices/…"]:::inner
+        IPUB(("Publish")):::iface
+        ISUB(("Subscribe")):::iface
+    end
+
+    subgraph SRV["«component» business-service"]
+        direction TB
+        MQS["«component»<br/>MqttConnection"]:::inner
+        MP["«component»<br/>MessageProcessor ×3<br/>(telemetry / alarm / status)"]:::inner
+        DB["«component»<br/>Dashboard"]:::inner
+        CSV[("«artifact»<br/>data/*.csv")]:::store
+        CC["«component»<br/>CommandConsole"]:::inner
+        MQS -- "BlockingQueue&lt;String&gt;" --> MP
+        MP -- "append()" --> CSV
+        MP -- "updateTelemetry / Alarm / Status" --> DB
+        CC -- "print()" --> DB
+        CC --> MQS
+    end
+
+    OP(["Operator<br/>(tastatură)"]):::iface
+
+    MQD -. "publish: .../telemetry, .../alarm, .../status" .-> IPUB
+    MQD -. "subscribe: .../&lt;id&gt;/commands" .-> ISUB
+    MQS -. "subscribe: .../+/telemetry, +/alarm, +/status" .-> ISUB
+    MQS -. "publish: .../&lt;id&gt;/commands" .-> IPUB
+    OP -- "show, device-1 SET_INTERVAL 1000" --> CC
+
+    class DEV,SRV comp
+    class BRK broker

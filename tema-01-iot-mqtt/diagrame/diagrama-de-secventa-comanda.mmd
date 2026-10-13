@@ -1,0 +1,28 @@
+---
+title: Secvența 2 – operatorul trimite SET_INTERVAL, iar device-ul confirmă
+---
+sequenceDiagram
+    autonumber
+    actor OP as Operator
+    participant CC as :CommandConsole
+    participant B as :Broker MQTT
+    participant CQ as commands :BlockingQueue
+    participant APE as :AperiodicCommandTask
+    participant PER as :PeriodicTelemetryTask
+    participant MPS as :MessageProcessor (status)
+    participant CSV as :CsvStorage
+    participant DB as :Dashboard
+
+    OP->>CC: "device-1 SET_INTERVAL 1000"
+    CC->>CC: split → deviceId = "device-1",<br/>comanda = "SET_INTERVAL 1000"
+    CC-)B: publish(.../device-1/commands, "SET_INTERVAL 1000")
+    B-)CQ: put("SET_INTERVAL 1000")
+    CQ-->>APE: take() → eliberarea unui job aperiodic
+    APE->>APE: parse + validare (100 ≤ ms ≤ 60000)
+    APE->>PER: setPeriodMs(1000)
+    Note over PER: perioada nouă se aplică<br/>de la următoarea eliberare
+    APE-)B: publish(.../device-1/status, "device-1#59;ts#59;OK SET_INTERVAL 1000")
+    B-)MPS: "device-1#59;ts#59;OK SET_INTERVAL 1000"
+    MPS->>CSV: append("status", mesaj)
+    MPS->>DB: updateStatus("device-1", "OK SET_INTERVAL 1000")
+    MPS-->>OP: afișare imediată: [status] device-1: OK SET_INTERVAL 1000
