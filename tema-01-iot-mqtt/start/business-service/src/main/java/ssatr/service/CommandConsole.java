@@ -44,15 +44,35 @@ public class CommandConsole implements Runnable {
     }
 
     private void sendCommand(String line) {
-        // TODO 6: separați deviceId de restul liniei
-        //   ("device-1 SET_INTERVAL 1000" -> "device-1" și "SET_INTERVAL 1000")
-        //   și publicați comanda pe Config.commandTopic(deviceId).
-        //   Afișați un mesaj de eroare dacă linia nu are formatul corect.
-        System.out.println("(trimiterea comenzilor neimplementată): " + line);
+
+        String[] parts = line.split("\\s+", 2);
+        if (parts.length < 2) {
+            System.out.println();
+            return;
+        }
+        String deviceId = parts[0];
+        String command = parts[1].trim();
+
+
+        if (deviceId.contains("/") || deviceId.contains("+") || deviceId.contains("#")) {
+            System.out.println("deviceId invalid: " + deviceId);
+            return;
+        }
+
+        String name = command.split("\\s+")[0].toUpperCase();
+        if (!KNOWN_COMMANDS.contains(name)) {
+            System.out.println();
+        }
+
+        mqtt.publish(Config.commandTopic(deviceId), command);
+        System.out.println("-> " + deviceId + ": " + command);
     }
 
+    private static final java.util.Set<String> KNOWN_COMMANDS =
+            java.util.Set.of("SET_INTERVAL", "SET_THRESHOLD", "RESET", "STATUS");
+
     private void printHelp() {
-        System.out.println("Comenzi: show | <deviceId> SET_INTERVAL <ms> | <deviceId> SET_THRESHOLD <valoare>");
-        System.out.println("         <deviceId> RESET | <deviceId> STATUS | help | exit");
+        System.out.println();
+        System.out.println();
     }
 }

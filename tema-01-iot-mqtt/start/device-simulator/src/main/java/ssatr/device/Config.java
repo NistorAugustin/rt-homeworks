@@ -10,7 +10,7 @@ public class Config {
 
     public static final String BROKER = "tcp://control.aut.utcluj.ro:11188";
 
-    public static final String STUDENT = "popescu-ion";
+    public static final String STUDENT = "gustinistor";
 
     private static final String DEVICES = "ssatr/" + STUDENT + "/devices/";
 
@@ -19,7 +19,7 @@ public class Config {
         return DEVICES + deviceId + "/telemetry";
     }
 
-    /** alarme (sporadice): "deviceId;timestamp;temperatura;prag" */
+    /** alarme : "deviceId;timestamp;temperatura;prag" */
     public static String alarmTopic(String deviceId) {
         return DEVICES + deviceId + "/alarm";
     }
