@@ -44,12 +44,33 @@ public class CommandConsole implements Runnable {
     }
 
     private void sendCommand(String line) {
-        // TODO 6: separați deviceId de restul liniei
-        //   ("device-1 SET_INTERVAL 1000" -> "device-1" și "SET_INTERVAL 1000")
-        //   și publicați comanda pe Config.commandTopic(deviceId).
-        //   Afișați un mesaj de eroare dacă linia nu are formatul corect.
-        System.out.println("(trimiterea comenzilor neimplementată): " + line);
+        // "device-1 SET_INTERVAL 1000" -> "device-1" și "SET_INTERVAL 1000"
+        String[] parts = line.split("\\s+", 2);
+        if (parts.length < 2) {
+            System.out.println("Format greșit. Folosiți: <deviceId> <COMANDA> [parametru], de ex. device-1 SET_INTERVAL 1000");
+            return;
+        }
+        String deviceId = parts[0];
+        String command = parts[1].trim();
+
+        // deviceId devine nivel de topic: nu poate conține wildcard-uri sau "/"
+        if (deviceId.contains("/") || deviceId.contains("+") || deviceId.contains("#")) {
+            System.out.println("deviceId invalid: " + deviceId);
+            return;
+        }
+        // comanda se verifică doar superficial; validarea completă o face device-ul,
+        // care răspunde cu ERROR pe topic-ul status
+        String name = command.split("\\s+")[0].toUpperCase();
+        if (!KNOWN_COMMANDS.contains(name)) {
+            System.out.println("Atenție: comanda " + name + " nu este cunoscută; o trimit oricum, device-ul va răspunde cu ERROR.");
+        }
+
+        mqtt.publish(Config.commandTopic(deviceId), command);
+        System.out.println("-> " + deviceId + ": " + command);
     }
+
+    private static final java.util.Set<String> KNOWN_COMMANDS =
+            java.util.Set.of("SET_INTERVAL", "SET_THRESHOLD", "RESET", "STATUS");
 
     private void printHelp() {
         System.out.println("Comenzi: show | <deviceId> SET_INTERVAL <ms> | <deviceId> SET_THRESHOLD <valoare>");
